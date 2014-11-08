@@ -13,13 +13,15 @@ module MTG
     }
 
     @@selector = {
-      cost: 'div#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_manaRow div.value'
+      cost: 'div#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_manaRow div.value',
+      converted_cost: 'div#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_cmcRow div.value',
+      type: 'div#ctl00_ctl00_ctl00_MainContent_SubContent_SubContent_typeRow div.value'
     }
   end
   
   class Card
     include WebConstants
-    attr_accessor :id, :name, :cost, :converted_cost, :type, :expansion, :rarity, :sets, :number, :artist, :rating
+    attr_accessor :id, :name, :expansion, :rarity, :sets, :number, :artist, :rating
     attr_writer :text, :flavour_text
 
     def initialize(id, name)
@@ -34,16 +36,33 @@ module MTG
   
     def fetch_data
       mech = Mechanize.new
-      mech.get @@url[:data].call(@id) do |page|
-        @cost = parse_cost page.search(@@selector[:cost])
-      end
+      @data = mech.get @@url[:data].call(@id)
+    end
+    
+    def cost
+      img_tags = @data.search @@selector[:cost]
+      parse_cost_from img_tags
+    end
+    
+    def converted_cost
+      cost = text_from_element :converted_cost
+      cost.to_i
+    end
+    
+    def type
+      text_from_element :type
     end
   
     def text(flavour=false)
-      flavour ? @flavour_text : @text
+      flavour ? flavour_text : text
+    end
+    
+    def text_from_element(selector_symbol)
+      element = @data.search @@selector[selector_symbol]
+      element.text.strip
     end
   
-    def parse_cost(node_set)
+    def parse_cost_from(node_set)
       cost = {}
       node_set.search('img').each do |tag|
         value = tag.attribute('alt').text
